@@ -260,3 +260,118 @@ document.addEventListener('DOMContentLoaded', function () {
     observer.observe(el);
   });
 })();
+
+/* ================================
+   CONTACT MODAL (Web3Forms)
+   Click the Email card -> popup form -> message is emailed to you.
+   ================================ */
+
+(function () {
+  var modal  = document.getElementById('contact-modal');
+  var opener = document.getElementById('open-contact');
+  var form   = document.getElementById('contact-form');
+  if (!modal || !opener || !form) return;
+
+  var status = document.getElementById('form-status');
+  var submit = document.getElementById('form-submit');
+  var closeTimer = null;
+
+  function openModal(e) {
+    e.preventDefault();
+    setStatus('');                      // clear any old success/error message
+    modal.hidden = false;
+    document.body.classList.add('modal-open');
+    form.elements.name.focus();
+  }
+
+  function closeModal() {
+    clearTimeout(closeTimer);
+    modal.hidden = true;
+    document.body.classList.remove('modal-open');
+    opener.focus();
+  }
+
+  opener.addEventListener('click', openModal);
+
+  modal.querySelectorAll('[data-close-modal]').forEach(function (el) {
+    el.addEventListener('click', closeModal);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !modal.hidden) closeModal();
+  });
+
+  function setStatus(text, type) {
+    status.textContent = text;
+    status.className = 'form-status' + (type ? ' ' + type : '');
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    if (!form.checkValidity()) {
+      setStatus('Please fill in your name, a valid email, and a message.', 'error');
+      return;
+    }
+
+    submit.disabled = true;
+    setStatus('Sending…');
+
+    fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(new FormData(form)))
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.success) {
+          setStatus('Thanks! Your message was sent.', 'success');
+          form.reset();
+          closeTimer = setTimeout(closeModal, 1800);
+        } else {
+          setStatus('Something went wrong. Please try again or email me directly.', 'error');
+        }
+      })
+      .catch(function () {
+        setStatus('Network error. Please try again later.', 'error');
+      })
+      .finally(function () { submit.disabled = false; });
+  });
+})();
+
+
+/* ================================
+   MESSAGE BUTTON HINT
+   Shows "Message me here" next to the floating button 2s after load,
+   keeps it up for 5s, then repeats every 30s. Skips while the popup is open.
+   ================================ */
+
+(function () {
+  var fab   = document.getElementById('open-contact');
+  var tip   = document.getElementById('contact-fab-tip');
+  var modal = document.getElementById('contact-modal');
+  if (!fab || !tip) return;
+
+  var FIRST_DELAY = 2000;   // ms before the first hint
+  var VISIBLE_FOR = 5000;   // ms the hint stays on screen
+  var REPEAT_EVERY = 30000; // ms between hints
+
+  function showHint() {
+    if (modal && !modal.hidden) return;
+    tip.classList.add('show');
+    fab.classList.add('attention');
+    setTimeout(hideHint, VISIBLE_FOR);
+  }
+
+  function hideHint() {
+    tip.classList.remove('show');
+    fab.classList.remove('attention');
+  }
+
+  fab.addEventListener('click', hideHint);
+
+  setTimeout(function () {
+    showHint();
+    setInterval(showHint, REPEAT_EVERY);
+  }, FIRST_DELAY);
+})();
